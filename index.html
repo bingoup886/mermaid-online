@@ -41,6 +41,23 @@
             background: #f3f4f6;
             transform: scale(1.05);
         }
+        .hint {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        #fullscreen-controls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            display: none;
+        }
     </style>
 </head>
 <body class="h-screen flex">
@@ -65,6 +82,7 @@
     <div class="flex-1 h-full relative overflow-hidden">
         <div id="render-container" class="h-full w-full relative overflow-auto bg-gray-50">
             <div id="mermaid-wrapper" class="mermaid-wrapper"></div>
+            <div class="hint">Ctrl+滚轮可缩放图表</div>
         </div>
         
         <!-- 控制按钮 -->
@@ -87,6 +105,25 @@
         </div>
     </div>
 
+    <!-- 全屏控制按钮 -->
+    <div id="fullscreen-controls">
+        <button class="control-btn" onclick="adjustZoom(0.2)" title="放大">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+        </button>
+        <button class="control-btn" onclick="adjustZoom(-0.2)" title="缩小">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+            </svg>
+        </button>
+        <button id="exit-fs-btn" class="control-btn" onclick="exitFullscreen()" title="退出全屏">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+        </button>
+    </div>
+
 <script>
 mermaid.initialize({
     startOnLoad: false,
@@ -106,7 +143,10 @@ let chartState = {
     startX: 0,
     startY: 0,
     initialWidth: 0,
-    initialHeight: 0
+    initialHeight: 0,
+    initialPosX: 0,
+    initialPosY: 0,
+    initialScale: 1
 };
 
 // 初始化编辑器
@@ -169,6 +209,10 @@ function centerDiagram() {
     chartState.posX = (availableWidth - chartState.initialWidth * scale) / 2;
     chartState.posY = (availableHeight - chartState.initialHeight * scale) / 2;
     
+    chartState.initialPosX = chartState.posX;
+    chartState.initialPosY = chartState.posY;
+    chartState.initialScale = chartState.scale;
+    
     updateTransform();
 }
 
@@ -225,18 +269,40 @@ function adjustZoom(amount) {
 function toggleFullscreen() {
     const container = document.getElementById('render-container');
     const fsIcon = document.getElementById('fs-btn').querySelector('svg');
+    const hint = container.querySelector('.hint');
+    const fullscreenControls = document.getElementById('fullscreen-controls');
     
     if (!document.fullscreenElement) {
         container.requestFullscreen().then(() => {
             fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>';
+            hint.textContent = 'Ctrl+滚轮可缩放图表 | ESC退出全屏';
+            fullscreenControls.style.display = 'flex';
+            document.querySelector('.control-btns').style.display = 'none';
             centerDiagram(); // 全屏时强制居中
         });
     } else {
-        document.exitFullscreen().then(() => {
-            fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
-            centerDiagram(); // 退出全屏时也居中
-        });
+        exitFullscreen();
     }
+}
+
+function exitFullscreen() {
+    const container = document.getElementById('render-container');
+    const fsIcon = document.getElementById('fs-btn').querySelector('svg');
+    const hint = container.querySelector('.hint');
+    const fullscreenControls = document.getElementById('fullscreen-controls');
+    
+    document.exitFullscreen().then(() => {
+        fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
+        hint.textContent = 'Ctrl+滚轮可缩放图表';
+        fullscreenControls.style.display = 'none';
+        document.querySelector('.control-btns').style.display = 'flex';
+        
+        // Reset to initial position and scale
+        chartState.scale = chartState.initialScale;
+        chartState.posX = chartState.initialPosX;
+        chartState.posY = chartState.initialPosY;
+        updateTransform();
+    });
 }
 
 // 窗口变化时重新居中
