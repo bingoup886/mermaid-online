@@ -1,78 +1,291 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Mermaid Editor</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <title>Mermaid在线编辑器</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="h-screen flex flex-col">
-    <div id="diagram-container" class="h-[75vh] w-full border-2 border-gray-200 p-4 overflow-auto flex justify-center items-center">
-        <div id="diagram" class="w-full h-full flex justify-center items-center"></div>
-    </div>
-
-    <div class="h-[25vh] flex flex-col border-t-2">
-        <div class="p-2 bg-gray-50 flex items-center justify-between">
-            <h3 class="font-semibold">Mermaid Code:</h3>
-            <button onclick="renderDiagram()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                Render
-            </button>
-        </div>
-        <textarea id="code" class="flex-1 p-2 font-mono text-sm resize-none focus:outline-none">
-graph TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Task 1]
-    B -->|No| D[Task 2]
-    C --> E[End]
-    D --> E
-    style A fill:#4CAF50,stroke:#388E3C
-    style E fill:#F44336,stroke:#D32F2F
-        </textarea>
-    </div>
-
-    <script>
-        mermaid.initialize({ 
-            startOnLoad: false,
-            securityLevel: 'loose',
-            theme: 'base',
-            themeVariables: {
-                primaryColor: '#B2DFDB',
-                secondaryColor: '#80CBC4'
-            }
-        });
-
-        async function renderDiagram() {
-            const code = document.getElementById('code').value;
-            const diagramDiv = document.getElementById('diagram');
-            
-            try {
-                // 清除现有内容
-                diagramDiv.innerHTML = '';
-                
-                // 验证语法
-                await mermaid.parse(code);
-                
-                // 创建新容器
-                const newContainer = document.createElement('div');
-                newContainer.className = 'mermaid';
-                newContainer.textContent = code;
-                diagramDiv.appendChild(newContainer);
-                
-                // 重新初始化
-                mermaid.init(undefined, newContainer);
-            } catch(err) {
-                diagramDiv.innerHTML = `<div class="text-red-500 p-4">Error: ${err.message || err.str}</div>`;
-            }
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        /* 自定义样式 */
+        .resize-handle {
+            width: 8px;
+            background: #e5e7eb;
+            cursor: col-resize;
+            transition: background 0.2s;
         }
 
-        document.addEventListener('DOMContentLoaded', renderDiagram);
+        .resize-handle:hover {
+            background: #d1d5db;
+        }
+
+        #render-container {
+            background-color: #f9fafb;
+        }
+
+        #render-container:fullscreen {
+            background: #f9fafb !important;
+            padding: 20px;
+        }
+
+        .mermaid-wrapper {
+            position: absolute;
+            transform-origin: 0 0;
+            transition: transform 0.15s ease-out;
+        }
+
+        .control-btn {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            display: flex;
+        }
+
+        .control-btn:hover {
+            background: #f3f4f6;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="h-screen flex">
+    <!-- 左侧编辑区 -->
+    <div class="w-[30%] h-full flex flex-col border-r border-gray-200">
+        <div class="p-4 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Mermaid代码</h2>
+            <button onclick="renderDiagram()" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                立即渲染
+            </button>
+        </div>
+        <textarea id="editor" 
+                  class="flex-1 p-4 text-sm font-mono resize-none outline-none bg-white"
+                  spellcheck="false"></textarea>
+    </div>
+
+    <!-- 分隔条 -->
+    <div class="resize-handle"></div>
+
+    <!-- 右侧渲染区 -->
+    <div class="flex-1 h-full relative overflow-hidden">
+        <div id="render-container" class="h-full w-full relative overflow-auto bg-gray-50">
+            <div id="mermaid-wrapper" class="mermaid-wrapper"></div>
+        </div>
         
-        let timeout;
-        document.getElementById('code').addEventListener('input', () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(renderDiagram, 500);
+        <!-- 控制按钮 -->
+        <div class="control-btns" style="position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px;">
+            <button class="control-btn" onclick="adjustZoom(0.2)" title="放大">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+            </button>
+            <button class="control-btn" onclick="adjustZoom(-0.2)" title="缩小">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                </svg>
+            </button>
+            <button id="fs-btn" class="control-btn" onclick="toggleFullscreen()" title="全屏">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+<script>
+// Mermaid配置
+mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: 'base',
+    themeVariables: {
+        primaryColor: '#BFDBFE',
+        secondaryColor: '#93C5FD'
+    }
+});
+
+// 图表状态管理
+let chartState = {
+    scale: 1,
+    posX: 0,
+    posY: 0,
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    initialWidth: 0,
+    initialHeight: 0
+};
+
+// 初始化编辑器
+function init() {
+    // 设置默认示例
+    const defaultCode = `graph TD
+    A[开始] --> B{决策}
+    B -->|是| C[流程1]
+    B -->|否| D[流程2]
+    C --> E[结束]
+    D --> E
+    style A fill:#4CAF50,stroke:#388E3C
+    style E fill:#F44336,stroke:#D32F2F`;
+    
+    document.getElementById('editor').value = defaultCode;
+    renderDiagram();
+    setupInteractions();
+    setupResizer();
+}
+
+// 渲染图表
+async function renderDiagram() {
+    try {
+        const code = document.getElementById('editor').value;
+        await mermaid.parse(code);
+        const { svg } = await mermaid.render('mermaid-svg', code);
+        const wrapper = document.getElementById('mermaid-wrapper');
+        wrapper.innerHTML = svg;
+        
+        // 获取初始尺寸
+        const svgElem = wrapper.querySelector('svg');
+        if (svgElem) {
+            chartState.initialWidth = svgElem.getBoundingClientRect().width;
+            chartState.initialHeight = svgElem.getBoundingClientRect().height;
+            centerDiagram();
+        }
+    } catch(err) {
+        document.getElementById('mermaid-wrapper').innerHTML = 
+            `<div class="text-red-500 p-4">渲染错误：${err.message}</div>`;
+    }
+}
+
+// 居中显示
+function centerDiagram() {
+    const container = document.getElementById('render-container');
+    const availableWidth = container.clientWidth;
+    const availableHeight = container.clientHeight;
+    
+    // 计算缩放比例
+    const scale = Math.min(
+        availableWidth / chartState.initialWidth,
+        availableHeight / chartState.initialHeight
+    );
+    
+    chartState.scale = Math.min(1, scale);
+    chartState.posX = (availableWidth - chartState.initialWidth * chartState.scale) / 2;
+    chartState.posY = (availableHeight - chartState.initialHeight * chartState.scale) / 2;
+    
+    updateTransform();
+}
+
+// 更新变换
+function updateTransform() {
+    const wrapper = document.getElementById('mermaid-wrapper');
+    wrapper.style.transform = 
+        `translate(${chartState.posX}px, ${chartState.posY}px) scale(${chartState.scale})`;
+}
+
+// 交互事件处理
+function setupInteractions() {
+    const container = document.getElementById('render-container');
+    
+    // 鼠标拖拽
+    container.addEventListener('mousedown', e => {
+        if (e.ctrlKey) return;
+        chartState.isDragging = true;
+        chartState.startX = e.clientX - chartState.posX;
+        chartState.startY = e.clientY - chartState.posY;
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!chartState.isDragging) return;
+        chartState.posX = e.clientX - chartState.startX;
+        chartState.posY = e.clientY - chartState.startY;
+        updateTransform();
+    });
+
+    document.addEventListener('mouseup', () => {
+        chartState.isDragging = false;
+    });
+
+    // 滚轮缩放
+    container.addEventListener('wheel', e => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        adjustZoom(delta);
+    });
+}
+
+// 缩放控制
+function adjustZoom(amount) {
+    const prevScale = chartState.scale;
+    chartState.scale = Math.min(Math.max(0.5, chartState.scale + amount), 3);
+    
+    // 保持中心点缩放
+    const container = document.getElementById('render-container');
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    
+    chartState.posX = centerX - (centerX - chartState.posX) * (chartState.scale / prevScale);
+    chartState.posY = centerY - (centerY - chartState.posY) * (chartState.scale / prevScale);
+    
+    updateTransform();
+}
+
+// 全屏切换
+function toggleFullscreen() {
+    const container = document.getElementById('render-container');
+    const fsIcon = document.getElementById('fs-btn').querySelector('svg');
+    
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().then(() => {
+            fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>';
         });
-    </script>
+    } else {
+        document.exitFullscreen().then(() => {
+            fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
+        });
+    }
+}
+
+// 布局调整
+function setupResizer() {
+    const resizer = document.querySelector('.resize-handle');
+    const leftPanel = document.querySelector('div.w-\\[30%\\]');
+    let isResizing = false;
+    let startX, startWidth;
+
+    resizer.addEventListener('mousedown', e => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = leftPanel.offsetWidth;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!isResizing) return;
+        const newWidth = startWidth + (e.clientX - startX);
+        leftPanel.style.width = `${Math.max(200, Math.min(window.innerWidth - 200, newWidth))}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+    });
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    document.getElementById('editor').addEventListener('input', () => {
+        clearTimeout(this.renderTimer);
+        this.renderTimer = setTimeout(renderDiagram, 500);
+    });
+    
+    // 窗口大小变化时重新居中
+    window.addEventListener('resize', () => {
+        if (chartState.scale === 1) centerDiagram();
+    });
+});
+</script>
 </body>
 </html>
