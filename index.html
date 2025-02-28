@@ -1,85 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mermaid Online Editor</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    .container {
-      display: flex;
-      gap: 20px;
-    }
-    textarea {
-      width: 100%;
-      height: 300px;
-      font-family: monospace;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    #output {
-      flex: 1;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 4px;
-      background-color: #f9f9f9;
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Mermaid Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Mermaid Online Editor</h1>
-  <div class="container">
-    <div style="flex: 1;">
-      <textarea id="input" placeholder="Enter your Mermaid code here...">
-graph TD;
-  A[Start] --> B{Decision?};
-  B -->|Yes| C[Do something];
-  B -->|No| D[Do something else];
-      </textarea>
-      <button onclick="renderMermaid()">Render</button>
+<body class="h-screen flex flex-col">
+    <div id="diagram-container" class="h-[75vh] w-full border-2 border-gray-200 p-4 overflow-auto flex justify-center items-center">
+        <div id="diagram" class="w-full h-full flex justify-center items-center"></div>
     </div>
-    <div id="output"></div>
-  </div>
 
-  <script>
-    // Initialize Mermaid
-    mermaid.initialize({ startOnLoad: false });
+    <div class="h-[25vh] flex flex-col border-t-2">
+        <div class="p-2 bg-gray-50 flex items-center justify-between">
+            <h3 class="font-semibold">Mermaid Code:</h3>
+            <button onclick="renderDiagram()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Render
+            </button>
+        </div>
+        <textarea id="code" class="flex-1 p-2 font-mono text-sm resize-none focus:outline-none">
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Task 1]
+    B -->|No| D[Task 2]
+    C --> E[End]
+    D --> E
+    style A fill:#4CAF50,stroke:#388E3C
+    style E fill:#F44336,stroke:#D32F2F
+        </textarea>
+    </div>
 
-    // Function to render Mermaid diagram
-    function renderMermaid() {
-      const input = document.getElementById('input').value;
-      const output = document.getElementById('output');
-      output.innerHTML = ''; // Clear previous content
-
-      try {
-        // Render the Mermaid diagram
-        mermaid.render('mermaid-diagram', input, (svgCode) => {
-          output.innerHTML = svgCode;
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: false,
+            securityLevel: 'loose',
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#B2DFDB',
+                secondaryColor: '#80CBC4'
+            }
         });
-      } catch (error) {
-        output.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
-      }
-    }
 
-    // Render on page load
-    renderMermaid();
-  </script>
+        async function renderDiagram() {
+            const code = document.getElementById('code').value;
+            const diagramDiv = document.getElementById('diagram');
+            
+            try {
+                // 清除现有内容
+                diagramDiv.innerHTML = '';
+                
+                // 验证语法
+                await mermaid.parse(code);
+                
+                // 创建新容器
+                const newContainer = document.createElement('div');
+                newContainer.className = 'mermaid';
+                newContainer.textContent = code;
+                diagramDiv.appendChild(newContainer);
+                
+                // 重新初始化
+                mermaid.init(undefined, newContainer);
+            } catch(err) {
+                diagramDiv.innerHTML = `<div class="text-red-500 p-4">Error: ${err.message || err.str}</div>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderDiagram);
+        
+        let timeout;
+        document.getElementById('code').addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(renderDiagram, 500);
+        });
+    </script>
 </body>
 </html>
