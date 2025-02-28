@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mermaid在线渲染</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -13,12 +13,11 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background-color: #f5f5f5;
-            overflow: hidden;
         }
         
         .header {
@@ -26,8 +25,7 @@
             color: white;
             padding: 15px;
             text-align: center;
-            font-size: 1.5em;
-            font-weight: bold;
+            font-size: 20px;
         }
         
         .container {
@@ -45,18 +43,16 @@
         }
         
         .editor {
-            width: 100%;
-            height: 100%;
-            padding: 15px;
+            flex: 1;
             resize: none;
-            border: none;
+            padding: 10px;
             font-family: monospace;
-            font-size: 14px;
+            border: none;
             outline: none;
-            background-color: #f9f9f9;
+            font-size: 14px;
         }
         
-        .render-button {
+        .render-btn {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -66,126 +62,102 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            z-index: 10;
-        }
-        
-        .render-button:hover {
-            background-color: #45a049;
         }
         
         .render-container {
             width: 70%;
             position: relative;
             overflow: hidden;
-            background-color: #fff;
-            cursor: grab;
+            background-color: #f5f5f5;
         }
         
-        .render-container:active {
-            cursor: grabbing;
-        }
-        
-        .render-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 100%;
-            max-height: 100%;
+        .render-area {
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
+        }
+        
+        .render-content {
+            width: 80%;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center;
+            cursor: move;
         }
         
         .controls {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
-            gap: 5px;
-            z-index: 100;
+            flex-direction: column;
+            gap: 10px;
         }
         
-        .control-button {
-            padding: 5px 10px;
+        .control-btn {
+            padding: 8px;
             background-color: #333;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .control-button:hover {
-            background-color: #555;
+            width: 80px;
+            text-align: center;
         }
         
         .tip {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            font-size: 12px;
+            left: 15px;
+            bottom: 15px;
             color: #666;
-            background-color: rgba(255, 255, 255, 0.7);
-            padding: 5px;
-            border-radius: 4px;
-            z-index: 100;
+            font-size: 12px;
         }
         
         .fullscreen-container {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background-color: #f5f5f5;
             z-index: 1000;
-            cursor: grab;
-        }
-        
-        .fullscreen-container:active {
-            cursor: grabbing;
-        }
-        
-        .fullscreen-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 100%;
-            max-height: 100%;
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
         }
         
+        .fullscreen-content {
+            width: 80%;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center;
+            cursor: move;
+        }
+        
         .fullscreen-controls {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
-            gap: 5px;
-            z-index: 1100;
+            flex-direction: column;
+            gap: 10px;
         }
         
         .fullscreen-tip {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            font-size: 12px;
+            left: 15px;
+            bottom: 15px;
             color: #666;
-            background-color: rgba(255, 255, 255, 0.7);
-            padding: 5px;
-            border-radius: 4px;
-            z-index: 1100;
-        }
-
-        /* 确保SVG能够正确显示 */
-        svg {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -194,35 +166,45 @@
     
     <div class="container">
         <div class="editor-container">
-            <textarea id="editor" class="editor"></textarea>
-            <button id="renderBtn" class="render-button">立即渲染</button>
+            <textarea class="editor" id="editor">graph TD
+    A[开始] ---> B{是否已登录?}
+    B -->|否| C[显示登录页]
+    C --> D[用户登录]
+    D --> E[显示主页]
+    B -->|是| E
+    E --> F[用户浏览]
+    F --> G[结束]</textarea>
+            <button class="render-btn" id="renderBtn">立即渲染</button>
         </div>
         
-        <div id="renderContainer" class="render-container">
-            <div id="renderContent" class="render-content">
-                <div id="output"></div>
+        <div class="render-container">
+            <div class="render-area" id="renderArea">
+                <div class="render-content" id="renderContent">
+                    <div class="mermaid" id="mermaidContent"></div>
+                </div>
             </div>
             
             <div class="controls">
-                <button id="zoomIn" class="control-button">放大</button>
-                <button id="zoomOut" class="control-button">缩小</button>
-                <button id="fullscreen" class="control-button">全屏</button>
-                <button id="center" class="control-button">垂直居中</button>
+                <button class="control-btn" id="zoomIn">放大</button>
+                <button class="control-btn" id="zoomOut">缩小</button>
+                <button class="control-btn" id="fullscreen">全屏</button>
+                <button class="control-btn" id="reset">重置画布</button>
             </div>
             
             <div class="tip">Ctrl+滚轮可扩缩图表</div>
         </div>
     </div>
     
-    <div id="fullscreenContainer" class="fullscreen-container">
-        <div id="fullscreenContent" class="fullscreen-content">
-            <div id="fullscreenOutput"></div>
+    <div class="fullscreen-container" id="fullscreenContainer">
+        <div class="fullscreen-content" id="fullscreenContent">
+            <div class="mermaid" id="fullscreenMermaid"></div>
         </div>
         
         <div class="fullscreen-controls">
-            <button id="fullscreenZoomIn" class="control-button">放大</button>
-            <button id="fullscreenZoomOut" class="control-button">缩小</button>
-            <button id="exitFullscreen" class="control-button">退出全屏</button>
+            <button class="control-btn" id="fsZoomIn">放大</button>
+            <button class="control-btn" id="fsZoomOut">缩小</button>
+            <button class="control-btn" id="exitFullscreen">退出全屏</button>
+            <button class="control-btn" id="fsReset">重置画布</button>
         </div>
         
         <div class="fullscreen-tip">Ctrl+滚轮可扩缩图表 | ESC退出全屏</div>
@@ -230,215 +212,77 @@
     
     <script>
         // 初始化Mermaid
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'loose'
-        });
+        mermaid.initialize({ startOnLoad: false });
         
-        // 默认示例
-        const defaultExample = `graph TD
-    A[开始] --> B{是否已登录?}
-    B -->|是| C[显示主页]
-    B -->|否| D[显示登录页]
-    C --> E[用户浏览]
-    D --> F[用户登录]
-    F --> C
-    E --> G[结束]`;
-        
-        // DOM元素
+        // 获取DOM元素
         const editor = document.getElementById('editor');
         const renderBtn = document.getElementById('renderBtn');
-        const output = document.getElementById('output');
-        const renderContainer = document.getElementById('renderContainer');
         const renderContent = document.getElementById('renderContent');
-        const zoomIn = document.getElementById('zoomIn');
-        const zoomOut = document.getElementById('zoomOut');
-        const fullscreenBtn = document.getElementById('fullscreen');
-        const centerBtn = document.getElementById('center');
+        const renderArea = document.getElementById('renderArea');
+        const mermaidContent = document.getElementById('mermaidContent');
         const fullscreenContainer = document.getElementById('fullscreenContainer');
         const fullscreenContent = document.getElementById('fullscreenContent');
-        const fullscreenOutput = document.getElementById('fullscreenOutput');
-        const fullscreenZoomIn = document.getElementById('fullscreenZoomIn');
-        const fullscreenZoomOut = document.getElementById('fullscreenZoomOut');
-        const exitFullscreen = document.getElementById('exitFullscreen');
+        const fullscreenMermaid = document.getElementById('fullscreenMermaid');
         
-        // 设置默认示例
-        editor.value = defaultExample;
-        
-        // 变量
+        // 缩放和位置变量
         let scale = 1;
-        let fullscreenScale = 1;
-        let renderTimer;
+        let translateX = 0;
+        let translateY = 0;
+        let fsScale = 1;
+        let fsTranslateX = 0;
+        let fsTranslateY = 0;
         let isDragging = false;
-        let startX, startY, scrollLeft, scrollTop;
-        let fullscreenIsDragging = false;
-        let fullscreenStartX, fullscreenStartY, fullscreenScrollLeft, fullscreenScrollTop;
-        let lastPosition = { x: 0, y: 0, scale: 1 };
-        let fitAttempts = 0;
+        let startX, startY;
         
         // 渲染函数
         function renderMermaid() {
             const code = editor.value;
-            output.innerHTML = '';
-            fullscreenOutput.innerHTML = '';
-            fitAttempts = 0;
+            mermaidContent.innerHTML = code;
+            fullscreenMermaid.innerHTML = code;
             
             try {
-                mermaid.render('mermaidGraph', code)
-                    .then(result => {
-                        output.innerHTML = result.svg;
-                        fullscreenOutput.innerHTML = result.svg;
-                        
-                        // 调整SVG大小以适应容器
-                        const svgs = document.querySelectorAll('svg');
-                        svgs.forEach(svg => {
-                            svg.setAttribute('width', '100%');
-                            svg.setAttribute('height', '100%');
-                            svg.style.maxWidth = '100%';
-                            svg.style.maxHeight = '100%';
-                        });
-
-                        // 多次尝试自动调整缩放以确保正确显示
-                        tryFitDiagramToView();
-                    })
-                    .catch(err => {
-                        output.innerHTML = `<pre style="color: red;">渲染错误: ${err.message}</pre>`;
-                        fullscreenOutput.innerHTML = output.innerHTML;
-                    });
-            } catch (err) {
-                output.innerHTML = `<pre style="color: red;">渲染错误: ${err.message}</pre>`;
-                fullscreenOutput.innerHTML = output.innerHTML;
-            }
-        }
-
-        // 尝试多次自动适应图表大小，确保正确加载
-        function tryFitDiagramToView() {
-            fitDiagramToView();
-            fitAttempts++;
-            
-            // 尝试几次，确保SVG完全加载
-            if (fitAttempts < 5) {
-                setTimeout(tryFitDiagramToView, 100);
-            }
-        }
-
-        // 自动调整缩放以显示完整图表
-        function fitDiagramToView() {
-            const svg = output.querySelector('svg');
-            if (!svg) return;
-            
-            // 获取容器尺寸
-            const containerWidth = renderContainer.clientWidth;
-            const containerHeight = renderContainer.clientHeight;
-            
-            // 获取SVG尺寸 - 使用多种方法确保获取到正确的尺寸
-            let svgWidth, svgHeight;
-            
-            try {
-                // 尝试获取SVG的viewBox属性
-                const viewBox = svg.getAttribute('viewBox');
-                if (viewBox) {
-                    const [_, __, width, height] = viewBox.split(' ').map(Number);
-                    svgWidth = width;
-                    svgHeight = height;
-                } else {
-                    // 如果没有viewBox，尝试使用getBBox
-                    const bbox = svg.getBBox();
-                    svgWidth = bbox.width;
-                    svgHeight = bbox.height;
-                }
-            } catch (e) {
-                // 如果上述方法失败，使用offsetWidth和offsetHeight
-                svgWidth = svg.offsetWidth || 300;
-                svgHeight = svg.offsetHeight || 200;
-            }
-            
-            // 增加额外的边距系数，确保图表完全显示
-            const marginFactor = 0.8; // 80%的容器大小，留出20%的边距
-            
-            // 计算合适的缩放比例
-            const scaleX = (containerWidth * marginFactor) / svgWidth;
-            const scaleY = (containerHeight * marginFactor) / svgHeight;
-            
-            // 选择较小的缩放比例，确保两个方向都适应
-            const newScale = Math.min(scaleX, scaleY);
-            
-            // 只有当新的缩放比例小于当前比例或者是初始渲染时才应用
-            if (newScale < scale || fitAttempts <= 1) {
-                scale = newScale;
+                mermaid.render('mermaidOutput', code).then(result => {
+                    mermaidContent.innerHTML = result.svg;
+                });
                 
-                // 应用缩放
-                applyZoom();
-                
-                // 重置位置到中心
-                renderContent.style.left = '50%';
-                renderContent.style.top = '50%';
-                lastPosition.x = 0;
-                lastPosition.y = 0;
-                lastPosition.scale = scale;
+                mermaid.render('fullscreenOutput', code).then(result => {
+                    fullscreenMermaid.innerHTML = result.svg;
+                });
+            } catch (error) {
+                mermaidContent.innerHTML = `<div style="color: red;">渲染错误: ${error.message}</div>`;
+                fullscreenMermaid.innerHTML = `<div style="color: red;">渲染错误: ${error.message}</div>`;
             }
         }
         
         // 初始渲染
         renderMermaid();
         
-        // 事件监听器
-        renderBtn.addEventListener('click', () => {
-            renderMermaid();
-        });
+        // 立即渲染按钮
+        renderBtn.addEventListener('click', renderMermaid);
         
+        // 编辑器内容变化后延迟渲染
+        let renderTimeout;
         editor.addEventListener('input', () => {
-            clearTimeout(renderTimer);
-            renderTimer = setTimeout(() => {
-                renderMermaid();
-            }, 500);
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(renderMermaid, 500);
         });
         
-        // 缩放功能
-        function applyZoom() {
-            renderContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        // 缩放和平移函数
+        function updateTransform() {
+            renderContent.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
         }
         
-        function applyFullscreenZoom() {
-            fullscreenContent.style.transform = `translate(-50%, -50%) scale(${fullscreenScale})`;
+        function updateFullscreenTransform() {
+            fullscreenContent.style.transform = `translate(${fsTranslateX}px, ${fsTranslateY}px) scale(${fsScale})`;
         }
-        
-        zoomIn.addEventListener('click', () => {
-            scale *= 1.2;
-            applyZoom();
-        });
-        
-        zoomOut.addEventListener('click', () => {
-            scale /= 1.2;
-            applyZoom();
-        });
-        
-        fullscreenZoomIn.addEventListener('click', () => {
-            fullscreenScale *= 1.2;
-            applyFullscreenZoom();
-        });
-        
-        fullscreenZoomOut.addEventListener('click', () => {
-            fullscreenScale /= 1.2;
-            applyFullscreenZoom();
-        });
-        
-        centerBtn.addEventListener('click', () => {
-            renderContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            renderContent.style.left = '50%';
-            renderContent.style.top = '50%';
-            lastPosition.x = 0;
-            lastPosition.y = 0;
-        });
         
         // 鼠标滚轮缩放
-        renderContainer.addEventListener('wheel', (e) => {
+        renderArea.addEventListener('wheel', (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
                 scale *= delta;
-                applyZoom();
+                updateTransform();
             }
         });
         
@@ -446,134 +290,101 @@
             if (e.ctrlKey) {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                fullscreenScale *= delta;
-                applyFullscreenZoom();
+                fsScale *= delta;
+                updateFullscreenTransform();
             }
         });
         
-        // 拖动功能 - 整个渲染区域可拖动
-        renderContainer.addEventListener('mousedown', (e) => {
-            // 避免在按钮上拖动
-            if (e.target.closest('.controls') || e.target.closest('.tip')) return;
-            
+        // 拖动功能
+        renderContent.addEventListener('mousedown', (e) => {
             isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            
-            // 处理百分比位置和像素位置
-            if (renderContent.style.left.includes('%')) {
-                // 如果是第一次拖动，还在默认的50%位置
-                scrollLeft = renderContainer.clientWidth / 2;
-                scrollTop = renderContainer.clientHeight / 2;
-            } else {
-                scrollLeft = parseInt(renderContent.style.left) || 50;
-                scrollTop = parseInt(renderContent.style.top) || 50;
-            }
-            
-            renderContainer.style.cursor = 'grabbing';
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+        
+        fullscreenContent.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - fsTranslateX;
+            startY = e.clientY - fsTranslateY;
         });
         
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            e.preventDefault();
-            const x = e.clientX - startX;
-            const y = e.clientY - startY;
             
-            renderContent.style.left = `${scrollLeft + x}px`;
-            renderContent.style.top = `${scrollTop + y}px`;
-            lastPosition.x = scrollLeft + x;
-            lastPosition.y = scrollTop + y;
-            lastPosition.scale = scale;
+            if (fullscreenContainer.style.display === 'flex') {
+                fsTranslateX = e.clientX - startX;
+                fsTranslateY = e.clientY - startY;
+                updateFullscreenTransform();
+            } else {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+            }
         });
         
         document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                renderContainer.style.cursor = 'grab';
-            }
-            if (fullscreenIsDragging) {
-                fullscreenIsDragging = false;
-                fullscreenContainer.style.cursor = 'grab';
-            }
+            isDragging = false;
         });
         
-        // 全屏拖动 - 整个全屏容器可拖动
-        fullscreenContainer.addEventListener('mousedown', (e) => {
-            // 避免在按钮上拖动
-            if (e.target.closest('.fullscreen-controls') || e.target.closest('.fullscreen-tip')) return;
-            
-            fullscreenIsDragging = true;
-            fullscreenStartX = e.clientX;
-            fullscreenStartY = e.clientY;
-            
-            // 处理百分比位置和像素位置
-            if (fullscreenContent.style.left.includes('%')) {
-                // 如果是第一次拖动，还在默认的50%位置
-                fullscreenScrollLeft = window.innerWidth / 2;
-                fullscreenScrollTop = window.innerHeight / 2;
-            } else {
-                fullscreenScrollLeft = parseInt(fullscreenContent.style.left) || 50;
-                fullscreenScrollTop = parseInt(fullscreenContent.style.top) || 50;
-            }
-            
-            fullscreenContainer.style.cursor = 'grabbing';
+        // 按钮功能
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            scale *= 1.2;
+            updateTransform();
         });
         
-        document.addEventListener('mousemove', (e) => {
-            if (!fullscreenIsDragging) return;
-            e.preventDefault();
-            const x = e.clientX - fullscreenStartX;
-            const y = e.clientY - fullscreenStartY;
-            
-            fullscreenContent.style.left = `${fullscreenScrollLeft + x}px`;
-            fullscreenContent.style.top = `${fullscreenScrollTop + y}px`;
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            scale *= 0.8;
+            updateTransform();
         });
         
-        // 全屏功能
-        fullscreenBtn.addEventListener('click', () => {
-            fullscreenContainer.style.display = 'block';
-            fullscreenScale = scale;
-            
-            // 将当前位置和缩放传递给全屏模式
-            fullscreenContent.style.transform = `translate(-50%, -50%) scale(${fullscreenScale})`;
-            
-            if (lastPosition.x !== 0 || lastPosition.y !== 0) {
-                fullscreenContent.style.left = `${lastPosition.x}px`;
-                fullscreenContent.style.top = `${lastPosition.y}px`;
-            } else {
-                fullscreenContent.style.left = '50%';
-                fullscreenContent.style.top = '50%';
-            }
+        document.getElementById('reset').addEventListener('click', () => {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
         });
         
-        exitFullscreen.addEventListener('click', () => {
+        document.getElementById('fullscreen').addEventListener('click', () => {
+            fullscreenContainer.style.display = 'flex';
+            fsScale = scale;
+            fsTranslateX = translateX;
+            fsTranslateY = translateY;
+            updateFullscreenTransform();
+        });
+        
+        document.getElementById('fsZoomIn').addEventListener('click', () => {
+            fsScale *= 1.2;
+            updateFullscreenTransform();
+        });
+        
+        document.getElementById('fsZoomOut').addEventListener('click', () => {
+            fsScale *= 0.8;
+            updateFullscreenTransform();
+        });
+        
+        document.getElementById('fsReset').addEventListener('click', () => {
+            fsScale = 1;
+            fsTranslateX = 0;
+            fsTranslateY = 0;
+            updateFullscreenTransform();
+        });
+        
+        document.getElementById('exitFullscreen').addEventListener('click', () => {
             fullscreenContainer.style.display = 'none';
-            
-            // 将全屏模式的位置和缩放传递回普通模式
-            scale = fullscreenScale;
-            renderContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            
-            if (fullscreenContent.style.left && fullscreenContent.style.top) {
-                renderContent.style.left = fullscreenContent.style.left;
-                renderContent.style.top = fullscreenContent.style.top;
-                
-                lastPosition.x = parseInt(fullscreenContent.style.left);
-                lastPosition.y = parseInt(fullscreenContent.style.top);
-                lastPosition.scale = fullscreenScale;
-            }
+            scale = fsScale;
+            translateX = fsTranslateX;
+            translateY = fsTranslateY;
+            updateTransform();
         });
         
         // ESC键退出全屏
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && fullscreenContainer.style.display === 'block') {
-                exitFullscreen.click();
-            }
-        });
-
-        // 窗口大小变化时重新适应图表
-        window.addEventListener('resize', () => {
-            if (document.querySelector('svg')) {
-                fitDiagramToView();
+            if (e.key === 'Escape' && fullscreenContainer.style.display === 'flex') {
+                fullscreenContainer.style.display = 'none';
+                scale = fsScale;
+                translateX = fsTranslateX;
+                translateY = fsTranslateY;
+                updateTransform();
             }
         });
     </script>
