@@ -7,33 +7,27 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
-        /* 自定义样式 */
         .resize-handle {
             width: 8px;
             background: #e5e7eb;
             cursor: col-resize;
             transition: background 0.2s;
         }
-
         .resize-handle:hover {
             background: #d1d5db;
         }
-
         #render-container {
             background-color: #f9fafb;
         }
-
         #render-container:fullscreen {
             background: #f9fafb !important;
             padding: 20px;
         }
-
         .mermaid-wrapper {
             position: absolute;
             transform-origin: 0 0;
             transition: transform 0.15s ease-out;
         }
-
         .control-btn {
             background: white;
             border: 1px solid #e5e7eb;
@@ -43,7 +37,6 @@
             transition: all 0.2s;
             display: flex;
         }
-
         .control-btn:hover {
             background: #f3f4f6;
             transform: scale(1.05);
@@ -95,7 +88,6 @@
     </div>
 
 <script>
-// Mermaid配置
 mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'loose',
@@ -106,7 +98,6 @@ mermaid.initialize({
     }
 });
 
-// 图表状态管理
 let chartState = {
     scale: 1,
     posX: 0,
@@ -120,7 +111,6 @@ let chartState = {
 
 // 初始化编辑器
 function init() {
-    // 设置默认示例
     const defaultCode = `graph TD
     A[开始] --> B{决策}
     B -->|是| C[流程1]
@@ -136,7 +126,13 @@ function init() {
     setupResizer();
 }
 
-// 渲染图表
+// 自动刷新功能（已集成防抖）
+let renderTimer;
+document.getElementById('editor').addEventListener('input', () => {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderDiagram, 500);
+});
+
 async function renderDiagram() {
     try {
         const code = document.getElementById('editor').value;
@@ -145,7 +141,6 @@ async function renderDiagram() {
         const wrapper = document.getElementById('mermaid-wrapper');
         wrapper.innerHTML = svg;
         
-        // 获取初始尺寸
         const svgElem = wrapper.querySelector('svg');
         if (svgElem) {
             chartState.initialWidth = svgElem.getBoundingClientRect().width;
@@ -158,37 +153,34 @@ async function renderDiagram() {
     }
 }
 
-// 居中显示
+// 增强的居中算法
 function centerDiagram() {
     const container = document.getElementById('render-container');
     const availableWidth = container.clientWidth;
     const availableHeight = container.clientHeight;
     
-    // 计算缩放比例
     const scale = Math.min(
         availableWidth / chartState.initialWidth,
-        availableHeight / chartState.initialHeight
+        availableHeight / chartState.initialHeight,
+        document.fullscreenElement ? Infinity : 1 // 全屏时允许放大
     );
     
-    chartState.scale = Math.min(1, scale);
-    chartState.posX = (availableWidth - chartState.initialWidth * chartState.scale) / 2;
-    chartState.posY = (availableHeight - chartState.initialHeight * chartState.scale) / 2;
+    chartState.scale = scale;
+    chartState.posX = (availableWidth - chartState.initialWidth * scale) / 2;
+    chartState.posY = (availableHeight - chartState.initialHeight * scale) / 2;
     
     updateTransform();
 }
 
-// 更新变换
 function updateTransform() {
     const wrapper = document.getElementById('mermaid-wrapper');
     wrapper.style.transform = 
         `translate(${chartState.posX}px, ${chartState.posY}px) scale(${chartState.scale})`;
 }
 
-// 交互事件处理
 function setupInteractions() {
     const container = document.getElementById('render-container');
     
-    // 鼠标拖拽
     container.addEventListener('mousedown', e => {
         if (e.ctrlKey) return;
         chartState.isDragging = true;
@@ -207,7 +199,6 @@ function setupInteractions() {
         chartState.isDragging = false;
     });
 
-    // 滚轮缩放
     container.addEventListener('wheel', e => {
         if (!e.ctrlKey) return;
         e.preventDefault();
@@ -216,12 +207,10 @@ function setupInteractions() {
     });
 }
 
-// 缩放控制
 function adjustZoom(amount) {
     const prevScale = chartState.scale;
     chartState.scale = Math.min(Math.max(0.5, chartState.scale + amount), 3);
     
-    // 保持中心点缩放
     const container = document.getElementById('render-container');
     const centerX = container.clientWidth / 2;
     const centerY = container.clientHeight / 2;
@@ -232,7 +221,7 @@ function adjustZoom(amount) {
     updateTransform();
 }
 
-// 全屏切换
+// 增强全屏处理
 function toggleFullscreen() {
     const container = document.getElementById('render-container');
     const fsIcon = document.getElementById('fs-btn').querySelector('svg');
@@ -240,15 +229,21 @@ function toggleFullscreen() {
     if (!document.fullscreenElement) {
         container.requestFullscreen().then(() => {
             fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>';
+            centerDiagram(); // 全屏时强制居中
         });
     } else {
         document.exitFullscreen().then(() => {
             fsIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
+            centerDiagram(); // 退出全屏时也居中
         });
     }
 }
 
-// 布局调整
+// 窗口变化时重新居中
+document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) centerDiagram();
+});
+
 function setupResizer() {
     const resizer = document.querySelector('.resize-handle');
     const leftPanel = document.querySelector('div.w-\\[30%\\]');
@@ -274,18 +269,7 @@ function setupResizer() {
 }
 
 // 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    init();
-    document.getElementById('editor').addEventListener('input', () => {
-        clearTimeout(this.renderTimer);
-        this.renderTimer = setTimeout(renderDiagram, 500);
-    });
-    
-    // 窗口大小变化时重新居中
-    window.addEventListener('resize', () => {
-        if (chartState.scale === 1) centerDiagram();
-    });
-});
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
